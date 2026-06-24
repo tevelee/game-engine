@@ -196,8 +196,11 @@ export type Condition =
   | { type: "score"; player: PlayerRef; op: CompareOp; value: NumExpr }
 
   // ── Variable conditions ────────────────────────────────────────────────────
-  /** True iff a named game variable equals a value. Used for game-specific state. */
+  /** True iff a named int/bool game variable equals a value. */
   | { type: "varEquals"; name: string; value: NumExpr }
+
+  /** True iff a named cell-type game variable equals a specific cell coordinate. */
+  | { type: "cellVarEquals"; name: string; cell: CellRef }
 
   // ── Spatial / structural conditions ───────────────────────────────────────
   /**

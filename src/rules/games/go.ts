@@ -177,16 +177,10 @@ export const go: GameSchema = {
             type: "where",
             base: { type: "empty" },
             where: {
-              // Ko restriction: cannot play on the ko point
+              // Ko restriction: may not place on the ko point this turn.
+              // cellVarEquals compares the candidate coordinate to the stored cell variable.
               type: "not",
-              of: {
-                type: "varEquals",
-                name: "koPoint",
-                // This condition is true when koPoint equals $cell (the candidate).
-                // The runtime resolves this: varEquals with a cell var compares
-                // the stored coordinate against the current binding candidate.
-                value: { stat: "varValue", varName: "koPoint" },
-              },
+              of: { type: "cellVarEquals", name: "koPoint", cell: "$target" },
             },
           },
           prompt: "Choose an empty point to place your stone",
