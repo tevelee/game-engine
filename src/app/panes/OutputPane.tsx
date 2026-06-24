@@ -17,8 +17,9 @@ import { LegalActionsTab } from "./LegalActionsTab";
 import { TraceTab } from "./TraceTab";
 import { EventLogTab } from "./EventLogTab";
 import { ReplayTab } from "./ReplayTab";
+import { IRTab } from "./IRTab";
 
-type Tab = "errors" | "rulebook" | "plan" | "play" | "legal" | "trace" | "log" | "replay";
+type Tab = "errors" | "rulebook" | "plan" | "ir" | "play" | "legal" | "trace" | "log" | "replay";
 
 interface Props {
   parseError: string | null;
@@ -68,6 +69,7 @@ export function OutputPane(props: Props) {
     { id: "replay", label: "Replay" },
     { id: "rulebook", label: "Rulebook" },
     { id: "plan", label: "Compiled Plan" },
+    { id: "ir", label: "IR" },
     { id: "errors", label: "Errors", badge: totalErrors || undefined },
   ];
 
@@ -107,6 +109,7 @@ export function OutputPane(props: Props) {
         {tab === "trace" && <TraceTab trace={lastTrace} />}
         {tab === "log" && <EventLogTab events={events} />}
         {tab === "replay" && <ReplayTab runtime={runtime} plan={plan} events={events} />}
+        {tab === "ir" && <IRTab />}
       </div>
     </div>
   );
