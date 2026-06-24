@@ -17,7 +17,7 @@
 
 import {
   $, lit, currentPlayer, opponent,
-  allCells, cellsAtDistance, piecesAtCell, allPlayers, filter,
+  allCells, piecesAtCell, allPlayers, filter,
   isEmpty, hasPiece, exists, not, and, distanceMatches, boardFull, countCompare, hasLegalAction,
   placePiece, movePiece, setPieceOwner, forEach, advanceTurn, seq,
   define, getDef,

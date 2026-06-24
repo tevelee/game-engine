@@ -526,11 +526,11 @@ export const chess: GameSchema = {
     type: "firstMatch",
     cases: [
       {
-        condition: { type: "pieceCount", piece: "king", owner: "white", op: "==", count: 0 },
+        condition: { type: "pieceCount", piece: "king", owner: "white", op: "==", value: 0 },
         winner: "black",
       },
       {
-        condition: { type: "pieceCount", piece: "king", owner: "black", op: "==", count: 0 },
+        condition: { type: "pieceCount", piece: "king", owner: "black", op: "==", value: 0 },
         winner: "white",
       },
     ],

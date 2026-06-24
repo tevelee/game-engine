@@ -19,6 +19,8 @@
  * Zones are referenced by name in Selectors, Conditions, and ResultRules.
  */
 
+import type { ZoneRef } from "./primitives";
+
 // ─── Space ────────────────────────────────────────────────────────────────────
 
 export type Space =

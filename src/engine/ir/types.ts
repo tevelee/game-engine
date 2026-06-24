@@ -300,7 +300,7 @@ export interface IRAction {
    */
   condition?: IRPredicate;
 
-  effects: IREffect[];
+  effects: IREffect;
   explain?: string;
   src?: SourceRef;
 }
