@@ -36,5 +36,8 @@ export {
 // Printer
 export { printIRGame, printSelector, printPredicate, printEffect, printExpr } from "./ir/printer";
 
+// Runtime
+export { IRGameRuntime } from "./runtime/IRGameRuntime";
+
 // Reference game definitions
 export { ataxx } from "./games/ataxx";
