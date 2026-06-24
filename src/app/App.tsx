@@ -74,15 +74,30 @@ export function App() {
   const [compiled, setCompiled] = useState<CompileState>(() =>
     runCompile(exampleInfectionGridJson)
   );
+  const [compileCount, setCompileCount] = useState(0);
   const [events, setEvents] = useState<GameEvent[]>([]);
   const [lastTrace, setLastTrace] = useState<ActionTrace | null>(null);
 
   const compile = useCallback(() => {
     const result = runCompile(schema);
     setCompiled(result);
+    setCompileCount((n) => n + 1);
     setEvents([]);
     setLastTrace(null);
   }, [schema]);
+
+  const handleNewGame = useCallback(() => {
+    const { runtime } = compiled;
+    if (!runtime) return;
+    const initial = runtime.initialState();
+    setCompiled((prev) => ({
+      ...prev,
+      gameState: initial,
+      outcome: runtime.outcome(initial),
+    }));
+    setEvents([]);
+    setLastTrace(null);
+  }, [compiled]);
 
   const handleAction = useCallback(
     (action: ActionInstance) => {
@@ -90,7 +105,11 @@ export function App() {
       if (!runtime || !gameState || outcome) return;
       const result = runtime.apply(gameState, action);
       const newOutcome = runtime.outcome(result.state);
-      setCompiled((prev) => ({ ...prev, gameState: result.state, outcome: newOutcome }));
+      setCompiled((prev) => ({
+        ...prev,
+        gameState: result.state,
+        outcome: newOutcome,
+      }));
       setLastTrace(result.trace);
       setEvents((prev) => [...prev, result.event]);
     },
@@ -135,6 +154,8 @@ export function App() {
           events={events}
           onAction={handleAction}
           onLastTrace={handleLastTrace}
+          onNewGame={handleNewGame}
+          compileCount={compileCount}
         />
       </div>
     </div>

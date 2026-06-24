@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { GridState, ActionInstance, GameRuntime, Outcome } from "../rules/core/types";
 import { indexToCoord, coordToIndex } from "../rules/core/coordinates";
 
@@ -11,6 +11,8 @@ interface BoardProps {
   outcome: Outcome | null;
   onAction: (action: ActionInstance) => void;
   onLastTrace?: (action: ActionInstance) => void;
+  onNewGame?: () => void;
+  readonly?: boolean;
 }
 
 export function Board({
@@ -22,30 +24,36 @@ export function Board({
   outcome,
   onAction,
   onLastTrace,
+  onNewGame,
+  readonly = false,
 }: BoardProps) {
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
 
-  const legalActions = outcome ? [] : runtime.legalActions(state);
+  // Clear selection when state changes (move was applied)
+  useEffect(() => {
+    setSelectedSource(null);
+  }, [state]);
+
+  // Escape key to deselect
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setSelectedSource(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const legalActions = (outcome || readonly) ? [] : runtime.legalActions(state);
   const currentPlayerName = players[state.currentPlayer];
 
+  // Cells that own pieces that can move
   const legalSources = new Set<string>();
-  const legalTargets = new Map<string, ActionInstance[]>();
-
   for (const action of legalActions) {
     if (action.bindings.source) legalSources.add(action.bindings.source);
-    if (action.bindings.target) {
-      const t = action.bindings.target;
-      if (!legalTargets.has(t)) legalTargets.set(t, []);
-      if (!action.bindings.source || action.bindings.source === selectedSource) {
-        legalTargets.get(t)!.push(action);
-      }
-    }
   }
 
-  const highlightedTargets = selectedSource
-    ? new Map<string, ActionInstance[]>()
-    : legalTargets;
-
+  // When source is selected: targets reachable from it
+  const highlightedTargets = new Map<string, ActionInstance[]>();
   if (selectedSource) {
     for (const action of legalActions) {
       if (action.bindings.source === selectedSource && action.bindings.target) {
@@ -61,25 +69,31 @@ export function Board({
   const counts = players.map(
     (_, pi) => Array.from(state.cells).filter((c) => c === pi).length
   );
+  const emptyCells = Array.from(state.cells).filter((c) => c === -1).length;
 
   function handleCellClick(coord: string) {
+    if (readonly) return;
+
     const idx = coordToIndex(coord, width);
     const owner = state.cells[idx];
 
+    // Deselect if clicking the selected source again
     if (selectedSource === coord) {
       setSelectedSource(null);
       return;
     }
 
-    if (highlightedTargets.has(coord)) {
+    // Apply action if clicking a highlighted target
+    if (selectedSource && highlightedTargets.has(coord)) {
       const actions = highlightedTargets.get(coord)!;
-      const action = actions[0];
+      // prefer clone over jump when both available (clone is less aggressive)
+      const action = actions.find((a) => a.id === "clone") ?? actions[0];
       onLastTrace?.(action);
       onAction(action);
-      setSelectedSource(null);
       return;
     }
 
+    // Select source if clicking a legal-source piece
     if (owner === state.currentPlayer && legalSources.has(coord)) {
       setSelectedSource(coord);
       return;
@@ -96,17 +110,24 @@ export function Board({
       const coord = indexToCoord(idx, width);
       const owner = state.cells[idx];
       const isSource = coord === selectedSource;
-      const isTarget = highlightedTargets.has(coord);
-      const isLegalSource = legalSources.has(coord) && !selectedSource;
+      const isTarget = selectedSource !== null && highlightedTargets.has(coord);
+      const isLegalSource = !selectedSource && legalSources.has(coord) && !readonly;
 
       let cls = "cell";
-      if (isSource) cls += " source";
-      else if (isTarget) {
+      if (isSource) {
+        cls += " source";
+      } else if (isTarget) {
         const acts = highlightedTargets.get(coord)!;
         const hasClone = acts.some((a) => a.id === "clone");
         const hasJump = acts.some((a) => a.id === "jump");
-        cls += hasClone && hasJump ? " target-both" : hasClone ? " target-clone" : " target-jump";
-      } else if (isLegalSource) cls += " legal-source";
+        cls += hasClone && hasJump
+          ? " target-both"
+          : hasClone
+          ? " target-clone"
+          : " target-jump";
+      } else if (isLegalSource) {
+        cls += " legal-source";
+      }
 
       const isDark = (f + r) % 2 === 0;
       cls += isDark ? " dark" : " light";
@@ -133,9 +154,16 @@ export function Board({
     <div className="board-wrapper">
       {outcome ? (
         <div className="outcome-banner">
-          {outcome.winner
-            ? `${capitalize(outcome.winner)} wins! ${outcome.reason}`
-            : `Draw. ${outcome.reason}`}
+          <span>
+            {outcome.winner
+              ? `${capitalize(outcome.winner)} wins — ${outcome.reason}`
+              : `Draw — ${outcome.reason}`}
+          </span>
+          {onNewGame && (
+            <button className="primary" onClick={onNewGame} style={{ marginLeft: 12 }}>
+              New Game
+            </button>
+          )}
         </div>
       ) : (
         <div className="status-bar">
@@ -148,6 +176,8 @@ export function Board({
               {capitalize(p)}: {counts[i]}
             </span>
           ))}
+          <span className="sep">|</span>
+          <span className="turn-label">Empty: {emptyCells}</span>
           <span className="sep">|</span>
           <span className="turn-label">Turn {state.turnNumber}</span>
         </div>
@@ -163,7 +193,7 @@ export function Board({
         {cells}
       </div>
 
-      {passAction && !outcome && (
+      {passAction && !outcome && !readonly && (
         <div className="pass-row">
           <button
             className="primary"
@@ -177,9 +207,22 @@ export function Board({
         </div>
       )}
 
-      {selectedSource && (
-        <div className="hint-bar">
-          Selected {selectedSource} — click a highlighted target to move, or click source again to deselect.
+      {!outcome && !readonly && (
+        <div className="board-legend">
+          {selectedSource ? (
+            <span className="hint-bar">
+              {selectedSource} selected — click target · <kbd>Esc</kbd> to cancel
+            </span>
+          ) : (
+            <span className="hint-bar">
+              Click one of your pieces to select it
+            </span>
+          )}
+          <div className="legend-chips">
+            <span className="legend-chip clone">Clone</span>
+            <span className="legend-chip jump">Jump</span>
+            <span className="legend-chip both">Clone+Jump</span>
+          </div>
         </div>
       )}
     </div>

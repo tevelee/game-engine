@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import type { GameEvent, GameRuntime, GridState, CompiledPlan } from "../../rules/core/types";
 import { Board } from "../../ui/Board";
 
@@ -9,40 +10,91 @@ interface Props {
 
 export function ReplayTab({ runtime, plan, events }: Props) {
   const [cursor, setCursor] = useState(events.length);
+  const [following, setFollowing] = useState(true); // auto-advance to latest
 
-  // Keep cursor in bounds when events change
+  // When following mode is on, stay pinned to the latest move
+  useEffect(() => {
+    if (following) setCursor(events.length);
+  }, [events.length, following]);
+
   const safeCursor = Math.min(cursor, events.length);
 
   if (!runtime || !plan) {
     return (
       <div className="scroll-area">
-        <div style={{ color: "var(--text-dim)" }}>Compile a valid schema and play moves to use replay.</div>
+        <div style={{ color: "var(--text-dim)" }}>
+          Compile a valid schema and play moves to use replay.
+        </div>
       </div>
     );
   }
 
   const replayResult = runtime.replay(events.slice(0, safeCursor));
-  const replayState: GridState = replayResult.states[safeCursor] ?? replayResult.states[replayResult.states.length - 1];
+  const replayState: GridState =
+    replayResult.states[safeCursor] ??
+    replayResult.states[replayResult.states.length - 1];
   const replayOutcome = safeCursor === events.length ? replayResult.outcome : null;
 
+  function go(next: number) {
+    const clamped = Math.max(0, Math.min(events.length, next));
+    setCursor(clamped);
+    setFollowing(clamped === events.length);
+  }
+
+  const currentEvent = safeCursor > 0 ? events[safeCursor - 1] : null;
+
   return (
-    <div className="scroll-area" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+    <div
+      className="scroll-area"
+      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}
+    >
       <div className="replay-controls">
-        <button onClick={() => setCursor(0)} disabled={safeCursor === 0}>⏮ Start</button>
-        <button onClick={() => setCursor((c) => Math.max(0, c - 1))} disabled={safeCursor === 0}>◀ Prev</button>
+        <button onClick={() => go(0)} disabled={safeCursor === 0}>
+          ⏮ Start
+        </button>
+        <button onClick={() => go(safeCursor - 1)} disabled={safeCursor === 0}>
+          ◀ Prev
+        </button>
         <span className="replay-pos">
           Move {safeCursor} / {events.length}
         </span>
-        <button onClick={() => setCursor((c) => Math.min(events.length, c + 1))} disabled={safeCursor === events.length}>Next ▶</button>
-        <button onClick={() => setCursor(events.length)} disabled={safeCursor === events.length}>Latest ⏭</button>
+        <button
+          onClick={() => go(safeCursor + 1)}
+          disabled={safeCursor === events.length}
+        >
+          Next ▶
+        </button>
+        <button
+          onClick={() => go(events.length)}
+          disabled={safeCursor === events.length}
+        >
+          Latest ⏭
+        </button>
+        <label className="replay-follow" title="Auto-advance when new moves are played">
+          <input
+            type="checkbox"
+            checked={following}
+            onChange={(e) => {
+              setFollowing(e.target.checked);
+              if (e.target.checked) setCursor(events.length);
+            }}
+          />
+          Follow live
+        </label>
       </div>
 
-      {safeCursor > 0 && events[safeCursor - 1] && (
+      {currentEvent && (
         <div className="info-row" style={{ justifyContent: "center" }}>
-          <div className="info-chip">Last move: <span>{events[safeCursor - 1].action.id}</span></div>
-          <div className="info-chip">Actor: <span>{events[safeCursor - 1].actor}</span></div>
-          {Object.entries(events[safeCursor - 1].action.bindings).map(([k, v]) => (
-            <div key={k} className="info-chip">{k}: <span>{v}</span></div>
+          <div className="info-chip">
+            Move: <span>{currentEvent.action.id}</span>
+          </div>
+          <div className="info-chip">
+            Actor: <span>{currentEvent.actor}</span>
+          </div>
+          {Object.entries(currentEvent.action.bindings).map(([k, v]) => (
+            <div key={k} className="info-chip">
+              {k}: <span>{v}</span>
+            </div>
           ))}
         </div>
       )}
@@ -55,9 +107,8 @@ export function ReplayTab({ runtime, plan, events }: Props) {
         height={plan.grid.height}
         outcome={replayOutcome}
         onAction={() => {}}
+        readonly
       />
     </div>
   );
 }
-
-import { useState } from "react";

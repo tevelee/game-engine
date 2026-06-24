@@ -8,9 +8,10 @@ interface Props {
   outcome: Outcome | null;
   onAction: (action: ActionInstance) => void;
   onLastTrace: (action: ActionInstance) => void;
+  onNewGame: () => void;
 }
 
-export function PlayTab({ runtime, plan, state, outcome, onAction, onLastTrace }: Props) {
+export function PlayTab({ runtime, plan, state, outcome, onAction, onLastTrace, onNewGame }: Props) {
   if (!runtime || !plan || !state) {
     return (
       <div className="scroll-area">
@@ -30,6 +31,7 @@ export function PlayTab({ runtime, plan, state, outcome, onAction, onLastTrace }
         outcome={outcome}
         onAction={onAction}
         onLastTrace={onLastTrace}
+        onNewGame={onNewGame}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type {
   CompileError,
   CompiledPlan,
@@ -32,19 +32,38 @@ interface Props {
   events: GameEvent[];
   onAction: (action: ActionInstance) => void;
   onLastTrace: (action: ActionInstance) => void;
+  onNewGame: () => void;
+  // compile counter — increments each time user hits Compile
+  compileCount: number;
 }
 
 export function OutputPane(props: Props) {
   const [tab, setTab] = useState<Tab>("play");
+  const prevCompile = useRef(props.compileCount);
 
-  const { parseError, errors, rulebook, plan, runtime, state, outcome, lastTrace, events, onAction, onLastTrace } = props;
+  const {
+    parseError, errors, rulebook, plan, runtime, state,
+    outcome, lastTrace, events, onAction, onLastTrace, onNewGame, compileCount,
+  } = props;
 
   const totalErrors = errors.length + (parseError ? 1 : 0);
+
+  // Auto-switch to Errors when compile produces errors
+  useEffect(() => {
+    if (compileCount !== prevCompile.current) {
+      prevCompile.current = compileCount;
+      if (totalErrors > 0) {
+        setTab("errors");
+      } else {
+        setTab("play");
+      }
+    }
+  }, [compileCount, totalErrors]);
 
   const tabs: { id: Tab; label: string; badge?: number }[] = [
     { id: "play", label: "Play" },
     { id: "legal", label: "Legal Actions" },
-    { id: "trace", label: "Trace" },
+    { id: "trace", label: "Trace", badge: lastTrace ? events.length : undefined },
     { id: "log", label: "Event Log", badge: events.length || undefined },
     { id: "replay", label: "Replay" },
     { id: "rulebook", label: "Rulebook" },
@@ -63,7 +82,7 @@ export function OutputPane(props: Props) {
           >
             {t.label}
             {t.badge !== undefined && (
-              <span className="badge">{t.badge}</span>
+              <span className="badge">{t.badge > 99 ? "99+" : t.badge}</span>
             )}
           </button>
         ))}
@@ -81,6 +100,7 @@ export function OutputPane(props: Props) {
             outcome={outcome}
             onAction={onAction}
             onLastTrace={onLastTrace}
+            onNewGame={onNewGame}
           />
         )}
         {tab === "legal" && <LegalActionsTab runtime={runtime} state={state} plan={plan} />}

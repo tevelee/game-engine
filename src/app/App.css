@@ -249,6 +249,11 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .pass-row {
@@ -371,12 +376,197 @@
 .hash-label { color: var(--text-dim); }
 .hash-sep { color: var(--border); }
 
+/* ─── Board legend ────────────────────────────────────────────────────────── */
+
+.board-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.legend-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.legend-chip {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  border: 1px solid;
+}
+
+.legend-chip.clone {
+  background: rgba(34,197,94,0.12);
+  border-color: rgba(34,197,94,0.5);
+  color: #4ade80;
+}
+
+.legend-chip.jump {
+  background: rgba(245,158,11,0.12);
+  border-color: rgba(245,158,11,0.5);
+  color: #fbbf24;
+}
+
+.legend-chip.both {
+  background: rgba(139,92,246,0.12);
+  border-color: rgba(139,92,246,0.5);
+  color: #c084fc;
+}
+
+kbd {
+  font-family: inherit;
+  font-size: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+/* ─── Log toolbar ─────────────────────────────────────────────────────────── */
+
+.log-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.event-index {
+  color: var(--text-dim);
+  font-size: 10px;
+  min-width: 28px;
+}
+
+/* ─── Replay follow checkbox ─────────────────────────────────────────────── */
+
+.replay-follow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.replay-follow input {
+  accent-color: var(--accent);
+}
+
+/* ─── Legal actions grouped view ─────────────────────────────────────────── */
+
+.action-group {
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.action-group-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border-radius: 0;
+  text-align: left;
+  font-size: 13px;
+}
+
+.action-group-header:hover {
+  background: var(--accent-dim);
+}
+
+.action-group-chevron {
+  font-size: 9px;
+  color: var(--text-dim);
+  transition: transform 0.15s;
+  display: inline-block;
+}
+
+.action-group-chevron.open {
+  transform: rotate(90deg);
+}
+
+.action-group-id {
+  color: var(--accent);
+  font-weight: 600;
+  flex: 1;
+}
+
+.action-group-count {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.action-group-body {
+  background: var(--surface);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.action-row {
+  border-top: 1px solid var(--border);
+}
+
+.action-row-summary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: transparent;
+  border-radius: 0;
+  text-align: left;
+  font-size: 12px;
+}
+
+.action-row-summary:hover {
+  background: var(--surface2);
+}
+
+.action-row-chevron {
+  font-size: 8px;
+  color: var(--text-dim);
+  min-width: 10px;
+}
+
+.action-actor {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.action-binding {
+  color: var(--text);
+  font-size: 11px;
+  background: var(--surface2);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.action-json {
+  padding: 8px 24px;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  overflow-x: auto;
+  white-space: pre;
+}
+
 /* ─── Replay ──────────────────────────────────────────────────────────────── */
 
 .replay-controls {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .replay-pos {
