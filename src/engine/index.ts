@@ -21,7 +21,7 @@ export {
   $, lit, global, currentPlayer, opponent, turnNumber,
   allCells, emptyCells, cellsAtDistance,
   rookRayCells, bishopRayCells, rayCells, connectedGroup,
-  explicitCells, cellsInZone, allPieces, piecesAtCell, allPlayers,
+  explicitCells, cellsInZone, captureRay, allPieces, piecesAtCell, allPlayers,
   filter, filterEmpty, union, intersection, difference,
   exists, forAll, countCompare,
   isEmpty, isOccupied, hasPiece,
@@ -41,3 +41,5 @@ export { IRGameRuntime } from "./runtime/IRGameRuntime";
 
 // Reference game definitions
 export { ataxx } from "./games/ataxx";
+export { tictactoe } from "./games/tictactoe";
+export { reversi } from "./games/reversi";

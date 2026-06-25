@@ -18,6 +18,7 @@ import { TraceTab } from "./TraceTab";
 import { EventLogTab } from "./EventLogTab";
 import { ReplayTab } from "./ReplayTab";
 import { IRTab } from "./IRTab";
+import type { IRGame } from "../../engine/ir/types";
 
 type Tab = "errors" | "rulebook" | "plan" | "ir" | "play" | "legal" | "trace" | "log" | "replay";
 
@@ -34,8 +35,8 @@ interface Props {
   onAction: (action: ActionInstance) => void;
   onLastTrace: (action: ActionInstance) => void;
   onNewGame: () => void;
-  // compile counter — increments each time user hits Compile
   compileCount: number;
+  irGame?: IRGame;
 }
 
 export function OutputPane(props: Props) {
@@ -44,7 +45,7 @@ export function OutputPane(props: Props) {
 
   const {
     parseError, errors, rulebook, plan, runtime, state,
-    outcome, lastTrace, events, onAction, onLastTrace, onNewGame, compileCount,
+    outcome, lastTrace, events, onAction, onLastTrace, onNewGame, compileCount, irGame,
   } = props;
 
   const totalErrors = errors.length + (parseError ? 1 : 0);
@@ -109,7 +110,7 @@ export function OutputPane(props: Props) {
         {tab === "trace" && <TraceTab trace={lastTrace} />}
         {tab === "log" && <EventLogTab events={events} />}
         {tab === "replay" && <ReplayTab runtime={runtime} plan={plan} events={events} />}
-        {tab === "ir" && <IRTab />}
+        {tab === "ir" && <IRTab game={irGame} />}
       </div>
     </div>
   );

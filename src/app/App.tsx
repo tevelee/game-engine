@@ -15,10 +15,19 @@ import { compileRuleset } from "../rules/compiler/compileRuleset";
 import { GridRuntime } from "../rules/runtime-grid/GridRuntime";
 import { IRGameRuntime } from "../engine/runtime/IRGameRuntime";
 import { ataxx } from "../engine/games/ataxx";
+import { tictactoe } from "../engine/games/tictactoe";
+import { reversi } from "../engine/games/reversi";
+import type { IRGame } from "../engine/ir/types";
 import { SchemaEditorPane } from "./panes/SchemaEditorPane";
 import { OutputPane } from "./panes/OutputPane";
 
 type AppMode = "schema" | "ir";
+
+const IR_GAMES: { id: string; label: string; game: IRGame }[] = [
+  { id: "ataxx",      label: "Ataxx",      game: ataxx      },
+  { id: "tictactoe",  label: "Tic-tac-toe", game: tictactoe  },
+  { id: "reversi",    label: "Reversi",     game: reversi    },
+];
 
 interface CompileState {
   parseError: string | null;
@@ -30,14 +39,14 @@ interface CompileState {
   outcome: Outcome | null;
 }
 
-function irAtaxxMinimalPlan(): CompiledPlan {
+function irMinimalPlan(game: IRGame): CompiledPlan {
   return {
     runtime: "grid-v1",
-    grid: { width: ataxx.board.width, height: ataxx.board.height },
-    players: ataxx.players,
+    grid: { width: game.board.width, height: game.board.height },
+    players: game.players,
     relations: {},
     actions: [],
-    setup: ataxx.setup.flatMap((eff) => {
+    setup: game.setup.flatMap((eff) => {
       if (eff.kind === "placePiece") {
         const at = eff.at.kind === "lit" ? String(eff.at.value) : "";
         const owner = eff.owner.kind === "lit" ? String(eff.owner.value) : "";
@@ -46,18 +55,18 @@ function irAtaxxMinimalPlan(): CompiledPlan {
       return [];
     }),
     end: [],
-    result: { type: "maxPieceCount", piece: "stone", tie: "draw" },
+    result: { type: "maxPieceCount", piece: game.pieceTypes[0]?.id ?? "piece", tie: "draw" },
   };
 }
 
-function runIRMode(): CompileState {
-  const rt = new IRGameRuntime(ataxx);
+function runIRMode(game: IRGame): CompileState {
+  const rt = new IRGameRuntime(game);
   const initial = rt.initialState();
   return {
     parseError: null,
     errors: [],
     rulebook: null,
-    plan: irAtaxxMinimalPlan(),
+    plan: irMinimalPlan(game),
     runtime: rt,
     gameState: initial,
     outcome: rt.outcome(initial),
@@ -109,6 +118,7 @@ function runCompile(schemaText: string): CompileState {
 
 export function App() {
   const [mode, setMode] = useState<AppMode>("schema");
+  const [selectedIRGame, setSelectedIRGame] = useState(IR_GAMES[0]);
   const [schema, setSchema] = useState(exampleInfectionGridJson);
   const [compiled, setCompiled] = useState<CompileState>(() =>
     runCompile(exampleInfectionGridJson)
@@ -117,19 +127,28 @@ export function App() {
   const [events, setEvents] = useState<GameEvent[]>([]);
   const [lastTrace, setLastTrace] = useState<ActionTrace | null>(null);
 
-  const switchMode = useCallback((next: AppMode) => {
+  const switchMode = useCallback((next: AppMode, irGame = selectedIRGame) => {
     setMode(next);
     setEvents([]);
     setLastTrace(null);
     if (next === "ir") {
-      setCompiled(runIRMode());
+      setCompiled(runIRMode(irGame.game));
       setCompileCount((n) => n + 1);
     } else {
       const result = runCompile(schema);
       setCompiled(result);
       setCompileCount((n) => n + 1);
     }
-  }, [schema]);
+  }, [schema, selectedIRGame]);
+
+  const switchIRGame = useCallback((entry: typeof IR_GAMES[number]) => {
+    setSelectedIRGame(entry);
+    setMode("ir");
+    setEvents([]);
+    setLastTrace(null);
+    setCompiled(runIRMode(entry.game));
+    setCompileCount((n) => n + 1);
+  }, []);
 
   const compile = useCallback(() => {
     const result = runCompile(schema);
@@ -186,7 +205,7 @@ export function App() {
       <header className="app-header">
         <span className="app-title">Rule Compiler Playground</span>
         <span className="app-subtitle">debuggable game-rule compiler workbench</span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
           <button
             className={`tab-btn${mode === "schema" ? " active" : ""}`}
             onClick={() => switchMode("schema")}
@@ -194,13 +213,17 @@ export function App() {
           >
             Schema
           </button>
-          <button
-            className={`tab-btn${mode === "ir" ? " active" : ""}`}
-            onClick={() => switchMode("ir")}
-            title="IR-based Ataxx (typed game engine)"
-          >
-            IR · Ataxx
-          </button>
+          <span style={{ color: "var(--text-muted, #888)", fontSize: 12 }}>IR:</span>
+          {IR_GAMES.map((entry) => (
+            <button
+              key={entry.id}
+              className={`tab-btn${mode === "ir" && selectedIRGame.id === entry.id ? " active" : ""}`}
+              onClick={() => switchIRGame(entry)}
+              title={`IR game: ${entry.label}`}
+            >
+              {entry.label}
+            </button>
+          ))}
         </div>
       </header>
 
@@ -227,6 +250,7 @@ export function App() {
           onLastTrace={handleLastTrace}
           onNewGame={handleNewGame}
           compileCount={compileCount}
+          irGame={mode === "ir" ? selectedIRGame.game : undefined}
         />
       </div>
     </div>

@@ -134,6 +134,16 @@ export function cellsInZone(board: string, zone: string, src?: SourceRef): IRSel
   return { kind: "cellsInZone", board, zone, irType: { kind: "selector", of: "cell" }, src };
 }
 
+export function captureRay(
+  board: string, from: IRExpr,
+  dx: number, dy: number,
+  through: IRExpr, anchor: IRExpr,
+  src?: SourceRef,
+): IRSelector {
+  return { kind: "captureRay", board, from, dx, dy, through, anchor,
+           irType: { kind: "selector", of: "cell" }, src };
+}
+
 export function allPieces(
   board: string,
   opts?: { pieceType?: string; owner?: IRExpr },

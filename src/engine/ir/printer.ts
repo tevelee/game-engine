@@ -181,6 +181,9 @@ export function printSelector(sel: IRSelector, _indent = 0): string {
     case "connectedGroup":
       return `group(${sel.board}, from=${printExpr(sel.from)}${sel.pieceType ? `, type=${sel.pieceType}` : ""}${sel.owner ? `, owner=${printExpr(sel.owner)}` : ""})${src}`;
 
+    case "captureRay":
+      return `captureRay(${sel.board}, from=${printExpr(sel.from)}, d=(${sel.dx},${sel.dy}), through=${printExpr(sel.through)}, anchor=${printExpr(sel.anchor)})${src}`;
+
     case "allPieces":
       return `allPieces(${sel.board}${sel.pieceType ? `, type=${sel.pieceType}` : ""}${sel.owner ? `, owner=${printExpr(sel.owner)}` : ""})${src}`;
 

@@ -336,7 +336,32 @@ export class IRGameRuntime implements GameRuntime {
         return sel.coords;
 
       case "cellsInZone":
-        throw new Error(`cellsInZone not yet supported`);
+        return (this.game.board.zones ?? {})[sel.zone] ?? [];
+
+      case "captureRay": {
+        const fromCoord = this.evalExpr(sel.from, ctx) as string;
+        const fromIdx   = coordToIndex(fromCoord, this.width);
+        const throughOwner = this.evalExpr(sel.through, ctx) as number;
+        const anchorOwner  = this.evalExpr(sel.anchor,  ctx) as number;
+        const { dx, dy } = sel;
+        const captured: string[] = [];
+        let col = (fromIdx % this.width) + dx;
+        let row = Math.floor(fromIdx / this.width) + dy;
+        while (col >= 0 && col < this.width && row >= 0 && row < this.height) {
+          const idx = row * this.width + col;
+          const owner = ctx.cells[idx];
+          if (owner === throughOwner) {
+            captured.push(indexToCoord(idx, this.width));
+          } else if (owner === anchorOwner && captured.length > 0) {
+            return captured;  // sandwiched — return the captured cells
+          } else {
+            break;  // empty cell or wrong piece — no capture in this direction
+          }
+          col += dx;
+          row += dy;
+        }
+        return [];  // ray ended without finding anchor
+      }
 
       case "cellsAtDistance": {
         const fromCoord = this.evalExpr(sel.from, ctx) as string;
@@ -482,8 +507,32 @@ export class IRGameRuntime implements GameRuntime {
         return group.some((ci) => this.orthogonalNeighbors(ci).some((ni) => ctx.cells[ni] === -1));
       }
 
-      case "connects":
-        throw new Error(`connects predicate not yet supported`);
+      case "connects": {
+        const zones = this.game.board.zones ?? {};
+        const fromCells = zones[pred.fromZone] ?? [];
+        const toCells   = new Set(zones[pred.toZone] ?? []);
+        const ownerIdx  = this.evalExpr(pred.owner, ctx) as number;
+        const visited   = new Set<number>();
+        const queue: number[] = [];
+        for (const coord of fromCells) {
+          const idx = coordToIndex(coord, this.width);
+          if (ctx.cells[idx] === ownerIdx && !visited.has(idx)) {
+            visited.add(idx);
+            queue.push(idx);
+          }
+        }
+        while (queue.length > 0) {
+          const curr = queue.shift()!;
+          if (toCells.has(indexToCoord(curr, this.width))) return true;
+          for (const nb of this.orthogonalNeighbors(curr)) {
+            if (!visited.has(nb) && ctx.cells[nb] === ownerIdx) {
+              visited.add(nb);
+              queue.push(nb);
+            }
+          }
+        }
+        return false;
+      }
 
       case "hasLegalAction": {
         // Depth guard: break circular hasLegalAction → legalActions → hasLegalAction cycles.

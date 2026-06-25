@@ -132,8 +132,24 @@ export type IRSelector = {
   /** An explicit hand-listed set of cell coordinates. */
   | { kind: "explicitCells"; coords: string[] }
 
-  /** All cells in a named zone. */
+  /** All cells in a named zone (zone names are defined in IRGame.board.zones). */
   | { kind: "cellsInZone"; board: string; zone: string }
+
+  /**
+   * Cells in direction (dx, dy) from `from` that are occupied by `through`-player's
+   * pieces, stopping before the first `anchor`-player piece — but ONLY returned if
+   * an anchor piece is actually found at the end of the ray.
+   *
+   * Used for Reversi/Othello flip detection: returns opponent cells sandwiched between
+   * the placed piece and the nearest friendly piece.
+   */
+  | { kind: "captureRay";
+      board:   string;
+      from:    IRExpr;
+      dx:      number;
+      dy:      number;
+      through: IRExpr;   // player whose pieces form the captured line
+      anchor:  IRExpr }  // player whose piece must terminate the ray
 
   // ── Piece selectors ───────────────────────────────────────────────────────
   | { kind: "allPieces";    board: string; pieceType?: string; owner?: IRExpr }
@@ -374,6 +390,8 @@ export interface IRGame {
     width: number;
     height: number;
     coordinates: "algebraic" | "numeric";
+    /** Named groups of cells, used by cellsInZone and connects. */
+    zones?: Record<string, string[]>;
   };
 
   players: string[];
