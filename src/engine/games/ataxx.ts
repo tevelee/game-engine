@@ -1,37 +1,47 @@
 /**
- * Ataxx expressed in the new module system + IR.
+ * games.ataxx.v1 — Ataxx expressed using the std library module system.
  *
- * This file is the "game definition layer" — what a game designer writes.
- * It imports builder functions from the standard library and composes them
- * into named definitions, then assembles the full IRGame.
+ * Each import block corresponds to one node in the module dependency graph:
  *
- * Compare this to the v2 schema in src/rules/games/ataxx.ts — both describe
- * the same game.  The key differences here:
- *
- *   ✓  Named definitions with explain strings (ownStoneCells, cloneTargets, …)
- *   ✓  TypeScript type checks every builder call
- *   ✓  The resulting object IS the IR (no separate resolve pass needed)
- *   ✓  Source references are attached at definition time
- *   ✓  Parameterized definitions are just TypeScript functions
+ *   rules.kernel.v1              — expressions, selectors, predicates, effects
+ *   std.players.two.v1           — currentPlayer, opponent, allPlayers
+ *   std.turns.alternating.v1     — advanceTurn
+ *   std.board.squareGrid.v1      — allCells, boardFull
+ *   std.spatial.distance.v1      — distanceMatches
+ *   std.pieces.ownedGridPieces.v1 — piecesAtCell, placePiece, movePiece, setPieceOwner
+ *   std.actions.noLegalActions.v1 — hasLegalAction
+ *   std.scoring.pieceCount.v1    — maxPieceCount result rule
  */
 
-import {
-  $, lit, currentPlayer, opponent,
-  allCells, piecesAtCell, allPlayers, filter,
-  isEmpty, hasPiece, exists, not, and, distanceMatches, boardFull, countCompare, hasLegalAction,
-  placePiece, movePiece, setPieceOwner, forEach, advanceTurn, seq,
-  define, getDef,
-} from "../ir/builders";
+// rules.kernel.v1
+import { $, lit, filter, exists, not, and, countCompare, seq, forEach, define, getDef }
+  from "../kernel/builders";
+// std.players.two.v1
+import { currentPlayer, opponent, allPlayers } from "../std/players";
+// std.turns.alternating.v1
+import { advanceTurn } from "../std/turns";
+// std.board.squareGrid.v1
+import { allCells, boardFull } from "../std/board";
+// std.spatial.distance.v1
+import { distanceMatches } from "../std/spatial";
+// std.pieces.ownedGridPieces.v1
+import { piecesAtCell, placePiece, movePiece, setPieceOwner, hasPiece, isEmpty } from "../std/pieces";
+// std.actions.noLegalActions.v1
+import { hasLegalAction } from "../std/actions";
+// std.scoring.pieceCount.v1
+import { maxPieceCount } from "../std/scoring";
+
 import type { IRGame, IRDefinition, IRSelector, IREffect } from "../ir/types";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Module metadata ──────────────────────────────────────────────────────────
 
-const BOARD = "main";
 const MODULE = "games.ataxx.v1";
+const BOARD  = "main";
 
 // ─── Named definitions ────────────────────────────────────────────────────────
+//
 // Each definition is a named, reusable expression with an explain string.
-// Parameterized definitions are TypeScript functions (no schema-level generics needed).
+// Parameterized definitions are TypeScript functions — no schema-level generics.
 
 const ownStoneCells = define(
   filter(allCells(BOARD), "cell",
@@ -78,7 +88,6 @@ const adjacentEnemyPieces = (targetVar: string): IRSelector => define(
   { name: "adjacentEnemyPieces", explain: "enemy stones exactly one king-step from target", module: MODULE }
 );
 
-// A reusable effect: convert all adjacent enemy stones around a target cell.
 const convertAdjacentEnemies = (targetVar: string): IREffect => define(
   forEach(
     adjacentEnemyPieces(targetVar), "enemyCell",
@@ -87,16 +96,13 @@ const convertAdjacentEnemies = (targetVar: string): IREffect => define(
   { name: "convertAdjacentEnemies", explain: "convert adjacent enemy stones to the current player's color", module: MODULE }
 );
 
-// ─── Game definition ──────────────────────────────────────────────────────────
+// ─── Definition collector ─────────────────────────────────────────────────────
 
-// Collect all named definitions (non-parameterized ones; parameterized ones
-// are collected per-action).
 function collectDefs(...nodes: object[]): IRDefinition[] {
-  return nodes.flatMap(n => {
-    const d = getDef(n);
-    return d ? [d] : [];
-  });
+  return nodes.flatMap(n => { const d = getDef(n); return d ? [d] : []; });
 }
+
+// ─── Game definition ──────────────────────────────────────────────────────────
 
 export const ataxx: IRGame = {
   id: "games.ataxx.v1",
@@ -132,7 +138,6 @@ export const ataxx: IRGame = {
 
   definitions: [
     ...collectDefs(ownStoneCells, opponentStoneCells),
-    // Parameterized definitions are shown as instances from each action:
     ...collectDefs(
       cloneTargets("source"),
       jumpTargets("source"),
@@ -167,7 +172,7 @@ export const ataxx: IRGame = {
         placePiece("stone", currentPlayer, $("target"),
           { module: MODULE, explain: "place a new stone at the target cell" }),
         convertAdjacentEnemies("target"),
-        advanceTurn({ module: MODULE, explain: "end the current player's turn" }),
+        advanceTurn({ module: "std.turns.alternating.v1", explain: "end the current player's turn" }),
       ]),
       src: { module: MODULE },
     },
@@ -251,11 +256,6 @@ export const ataxx: IRGame = {
     },
   ],
 
-  result: {
-    kind: "maxPieceCount",
-    pieceType: "stone",
-    board: BOARD,
-    tie: "draw",
-    src: { module: "std.scoring.pieceCount.v1", explain: "the player with the most stones wins; tie is a draw" },
-  },
+  result: maxPieceCount("stone", BOARD, "draw",
+    { module: "std.scoring.pieceCount.v1", explain: "the player with the most stones wins; tie is a draw" }),
 };

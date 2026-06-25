@@ -36,7 +36,16 @@ export const reversi: IRGame = {
   description:
     "Place discs to sandwich and flip opponent pieces along orthogonal and diagonal lines. " +
     "The player with the most discs when neither can move wins.",
-  modules: [MODULE],
+  modules: [
+    "rules.kernel.v1",
+    "std.players.two.v1",
+    "std.turns.alternating.v1",
+    "std.board.squareGrid.v1",
+    "std.spatial.distance.v1",
+    "std.pieces.ownedGridPieces.v1",
+    "std.actions.noLegalActions.v1",
+    "std.scoring.pieceCount.v1",
+  ],
 
   board: { id: BOARD, width: 8, height: 8, coordinates: "algebraic" },
   players: ["black", "white"],

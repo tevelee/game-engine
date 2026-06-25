@@ -31,7 +31,13 @@ export const tictactoe: IRGame = {
   version: 1,
   name: "Tic-tac-toe",
   description: "Classic 3-in-a-row game. First to complete a row, column, or diagonal wins.",
-  modules: ["games.tictactoe.v1"],
+  modules: [
+    "rules.kernel.v1",
+    "std.players.two.v1",
+    "std.turns.alternating.v1",
+    "std.board.squareGrid.v1",
+    "std.pieces.ownedGridPieces.v1",
+  ],
 
   board: { id: BOARD, width: 3, height: 3, coordinates: "algebraic" },
   players: ["X", "O"],
