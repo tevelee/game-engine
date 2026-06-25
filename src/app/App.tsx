@@ -18,6 +18,7 @@ import { ataxx } from "../engine/games/ataxx";
 import { tictactoe } from "../engine/games/tictactoe";
 import { reversi } from "../engine/games/reversi";
 import type { IRGame } from "../engine/ir/types";
+import { generateRulebook } from "../engine/ir/rulebook";
 import { SchemaEditorPane } from "./panes/SchemaEditorPane";
 import { OutputPane } from "./panes/OutputPane";
 
@@ -65,7 +66,7 @@ function runIRMode(game: IRGame): CompileState {
   return {
     parseError: null,
     errors: [],
-    rulebook: null,
+    rulebook: generateRulebook(game),
     plan: irMinimalPlan(game),
     runtime: rt,
     gameState: initial,
