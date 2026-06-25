@@ -1,17 +1,18 @@
 import { useState } from "react";
-import type { ActionInstance, GridState, GameRuntime, CompiledPlan } from "../../rules/core/types";
+import type { ActionInstance, GridState, GameRuntime } from "../../rules/core/types";
+import type { BoardMeta } from "./OutputPane";
 
 interface Props {
   runtime: GameRuntime | null;
   state: GridState | null;
-  plan: CompiledPlan | null;
+  board: BoardMeta | null;
 }
 
-export function LegalActionsTab({ runtime, state, plan }: Props) {
+export function LegalActionsTab({ runtime, state, board }: Props) {
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
 
-  if (!runtime || !state || !plan) {
+  if (!runtime || !state || !board) {
     return (
       <div className="scroll-area">
         <div style={{ color: "var(--text-dim)" }}>
@@ -55,7 +56,7 @@ export function LegalActionsTab({ runtime, state, plan }: Props) {
           </div>
         ))}
         <div className="info-chip">
-          Player: <span>{plan.players[state.currentPlayer]}</span>
+          Player: <span>{board.players[state.currentPlayer]}</span>
         </div>
       </div>
 

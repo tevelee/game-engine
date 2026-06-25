@@ -19,6 +19,8 @@ import { tictactoe } from "../engine/games/tictactoe";
 import { reversi } from "../engine/games/reversi";
 import type { IRGame } from "../engine/ir/types";
 import { generateRulebook } from "../engine/ir/rulebook";
+import { compile } from "../engine/ir/compile";
+import type { CompiledRuleset } from "../engine/ir/compile";
 import { SchemaEditorPane } from "./panes/SchemaEditorPane";
 import { OutputPane } from "./panes/OutputPane";
 
@@ -34,30 +36,10 @@ interface CompileState {
   parseError: string | null;
   errors: CompileError[];
   rulebook: string | null;
-  plan: CompiledPlan | null;
+  plan: CompiledPlan | CompiledRuleset | null;
   runtime: GameRuntime | null;
   gameState: GridState | null;
   outcome: Outcome | null;
-}
-
-function irMinimalPlan(game: IRGame): CompiledPlan {
-  return {
-    runtime: "grid-v1",
-    grid: { width: game.board.width, height: game.board.height },
-    players: game.players,
-    relations: {},
-    actions: [],
-    setup: game.setup.flatMap((eff) => {
-      if (eff.kind === "placePiece") {
-        const at = eff.at.kind === "lit" ? String(eff.at.value) : "";
-        const owner = eff.owner.kind === "lit" ? String(eff.owner.value) : "";
-        return [{ place: eff.pieceType, owner, at }];
-      }
-      return [];
-    }),
-    end: [],
-    result: { type: "maxPieceCount", piece: game.pieceTypes[0]?.id ?? "piece", tie: "draw" },
-  };
 }
 
 function runIRMode(game: IRGame): CompileState {
@@ -67,7 +49,7 @@ function runIRMode(game: IRGame): CompileState {
     parseError: null,
     errors: [],
     rulebook: generateRulebook(game),
-    plan: irMinimalPlan(game),
+    plan: compile(game),
     runtime: rt,
     gameState: initial,
     outcome: rt.outcome(initial),

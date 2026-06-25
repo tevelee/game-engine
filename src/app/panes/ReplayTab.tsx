@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
-import type { GameEvent, GameRuntime, GridState, CompiledPlan } from "../../rules/core/types";
+import type { GameEvent, GameRuntime, GridState } from "../../rules/core/types";
+import type { BoardMeta } from "./OutputPane";
 import { Board } from "../../ui/Board";
 
 interface Props {
   runtime: GameRuntime | null;
-  plan: CompiledPlan | null;
+  board: BoardMeta | null;
   events: GameEvent[];
 }
 
-export function ReplayTab({ runtime, plan, events }: Props) {
+export function ReplayTab({ runtime, board, events }: Props) {
   const [cursor, setCursor] = useState(events.length);
   const [following, setFollowing] = useState(true); // auto-advance to latest
 
@@ -19,7 +20,7 @@ export function ReplayTab({ runtime, plan, events }: Props) {
 
   const safeCursor = Math.min(cursor, events.length);
 
-  if (!runtime || !plan) {
+  if (!runtime || !board) {
     return (
       <div className="scroll-area">
         <div style={{ color: "var(--text-dim)" }}>
@@ -102,9 +103,9 @@ export function ReplayTab({ runtime, plan, events }: Props) {
       <Board
         state={replayState}
         runtime={runtime}
-        players={plan.players}
-        width={plan.grid.width}
-        height={plan.grid.height}
+        players={board.players}
+        width={board.width}
+        height={board.height}
         outcome={replayOutcome}
         onAction={() => {}}
         readonly

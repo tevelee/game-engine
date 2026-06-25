@@ -1,8 +1,9 @@
 import type { CompiledPlan } from "../../rules/core/types";
+import type { CompiledRuleset } from "../../engine/ir/compile";
 import { JsonViewer } from "../../ui/JsonViewer";
 
 interface Props {
-  plan: CompiledPlan | null;
+  plan: CompiledPlan | CompiledRuleset | null;
 }
 
 export function CompiledPlanTab({ plan }: Props) {

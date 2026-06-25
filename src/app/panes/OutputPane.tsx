@@ -9,6 +9,7 @@ import type {
   GameRuntime,
   Outcome,
 } from "../../rules/core/types";
+import type { CompiledRuleset } from "../../engine/ir/compile";
 import { ErrorsTab } from "./ErrorsTab";
 import { RulebookTab } from "./RulebookTab";
 import { CompiledPlanTab } from "./CompiledPlanTab";
@@ -22,11 +23,20 @@ import type { IRGame } from "../../engine/ir/types";
 
 type Tab = "errors" | "rulebook" | "plan" | "ir" | "play" | "legal" | "trace" | "log" | "replay";
 
+/** Minimal board metadata needed by PlayTab, LegalActionsTab, and ReplayTab. */
+export interface BoardMeta { players: string[]; width: number; height: number }
+
+function extractBoardMeta(plan: CompiledPlan | CompiledRuleset | null): BoardMeta | null {
+  if (!plan) return null;
+  if ("grid" in plan) return { players: plan.players, width: plan.grid.width, height: plan.grid.height };
+  return { players: plan.players, width: plan.board.width, height: plan.board.height };
+}
+
 interface Props {
   parseError: string | null;
   errors: CompileError[];
   rulebook: string | null;
-  plan: CompiledPlan | null;
+  plan: CompiledPlan | CompiledRuleset | null;
   runtime: GameRuntime | null;
   state: GridState | null;
   outcome: Outcome | null;
@@ -98,7 +108,7 @@ export function OutputPane(props: Props) {
         {tab === "play" && (
           <PlayTab
             runtime={runtime}
-            plan={plan}
+            board={extractBoardMeta(plan)}
             state={state}
             outcome={outcome}
             onAction={onAction}
@@ -106,10 +116,10 @@ export function OutputPane(props: Props) {
             onNewGame={onNewGame}
           />
         )}
-        {tab === "legal" && <LegalActionsTab runtime={runtime} state={state} plan={plan} />}
+        {tab === "legal" && <LegalActionsTab runtime={runtime} state={state} board={extractBoardMeta(plan)} />}
         {tab === "trace" && <TraceTab trace={lastTrace} />}
         {tab === "log" && <EventLogTab events={events} />}
-        {tab === "replay" && <ReplayTab runtime={runtime} plan={plan} events={events} />}
+        {tab === "replay" && <ReplayTab runtime={runtime} board={extractBoardMeta(plan)} events={events} />}
         {tab === "ir" && <IRTab game={irGame} />}
       </div>
     </div>
