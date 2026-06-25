@@ -27,6 +27,8 @@ interface EvalCtx {
   currentPlayerIdx: number;   // 0 or 1
   turnNumber: number;
   bindings: Record<string, unknown>; // name → coord string | number | boolean | null
+  scores: number[];           // per-player score, indexed by player index
+  vars: Record<string, number | boolean | string | null>; // named game variables
 }
 
 // ─── IRGameRuntime ────────────────────────────────────────────────────────────
@@ -50,11 +52,14 @@ export class IRGameRuntime implements GameRuntime {
 
   initialState(): GridState {
     const cells = new Int8Array(this.totalCells).fill(-1);
-    const ctx = this.baseCtx(cells, 0, 1);
+    const scores = new Array<number>(this.game.players.length).fill(0);
+    const vars: Record<string, number | boolean | string | null> = {};
+    for (const v of this.game.vars) vars[v.name] = v.initial;
+    const ctx = this.baseCtx(cells, 0, 1, scores, vars);
     for (const eff of this.game.setup) {
       this.execEffect(eff, ctx);
     }
-    return { cells: ctx.cells, currentPlayer: 0, turnNumber: 1 };
+    return { cells: ctx.cells, currentPlayer: 0, turnNumber: 1, scores: ctx.scores, vars: ctx.vars };
   }
 
   legalActions(state: GridState): ActionInstance[] {
@@ -151,7 +156,16 @@ export class IRGameRuntime implements GameRuntime {
       nextTurn = state.turnNumber + 1;
     }
 
-    const newState: GridState = { cells: newCells, currentPlayer: nextPlayer, turnNumber: nextTurn };
+    const newScores = trace.finalScores ?? state.scores?.slice() ?? new Array(this.game.players.length).fill(0);
+    const newVars   = trace.finalVars   ?? { ...(state.vars ?? {}) };
+
+    const newState: GridState = {
+      cells: newCells,
+      currentPlayer: nextPlayer,
+      turnNumber: nextTurn,
+      scores: newScores,
+      vars: newVars,
+    };
     const nextHash = this.hash(newState);
 
     const event: GameEvent = {
@@ -161,6 +175,7 @@ export class IRGameRuntime implements GameRuntime {
       action,
       previousStateHash: prevHash,
       nextStateHash: nextHash,
+      scores: newScores.slice(),
     };
 
     return { state: newState, trace, event };
@@ -198,13 +213,17 @@ export class IRGameRuntime implements GameRuntime {
       });
     }
 
-    // Execute effects on a working copy of cells
+    // Execute effects on a working copy of cells/scores/vars
     const workingCells = new Int8Array(state.cells);
+    const workingScores = (state.scores ?? new Array<number>(this.game.players.length).fill(0)).slice();
+    const workingVars: Record<string, number | boolean | string | null> = { ...(state.vars ?? {}) };
     const effectCtx: EvalCtx = {
       cells: workingCells,
       currentPlayerIdx: state.currentPlayer,
       turnNumber: state.turnNumber,
       bindings: { ...ctx.bindings, ...loadedBindings },
+      scores: workingScores,
+      vars: workingVars,
     };
 
     const effectTrace: EffectTraceEntry[] = [];
@@ -222,6 +241,8 @@ export class IRGameRuntime implements GameRuntime {
       bindingTrace,
       effectTrace,
       endConditionTrace,
+      finalScores: workingScores.slice(),
+      finalVars: { ...workingVars },
     };
   }
 
@@ -281,7 +302,9 @@ export class IRGameRuntime implements GameRuntime {
           case "currentPlayer": return ctx.currentPlayerIdx;
           case "opponent":      return 1 - ctx.currentPlayerIdx;
           case "turnNumber":    return ctx.turnNumber;
-          default: throw new Error(`Unknown global: ${expr.name}`);
+          default:
+            if (expr.name in ctx.vars) return ctx.vars[expr.name];
+            throw new Error(`Unknown global: ${expr.name}`);
         }
 
       case "field":
@@ -546,6 +569,8 @@ export class IRGameRuntime implements GameRuntime {
             cells: ctx.cells,
             currentPlayer: playerIdx as 0 | 1,
             turnNumber: ctx.turnNumber,
+            scores: ctx.scores,
+            vars: ctx.vars,
           };
           const legal = this.legalActions(fakeState);
           return legal.some((a) => pred.actions.includes(a.id));
@@ -633,15 +658,28 @@ export class IRGameRuntime implements GameRuntime {
         break;
       }
 
-      case "addScore":
-      case "setScore":
-        // Scores not tracked in GridState; no-op for now
+      case "addScore": {
+        const playerIdx = this.resolveOwner(eff.player, ctx);
+        const amount = this.evalExpr(eff.amount, ctx) as number;
+        ctx.scores[playerIdx] = (ctx.scores[playerIdx] ?? 0) + amount;
         break;
+      }
+
+      case "setScore": {
+        const playerIdx = this.resolveOwner(eff.player, ctx);
+        ctx.scores[playerIdx] = this.evalExpr(eff.amount, ctx) as number;
+        break;
+      }
 
       case "setVar":
-      case "incrementVar":
-        // Vars not in GridState; no-op for now (Ataxx has no vars)
+        ctx.vars[eff.name] = eff.value !== null ? (this.evalExpr(eff.value, ctx) as number | boolean | string | null) : null;
         break;
+
+      case "incrementVar": {
+        const cur = (ctx.vars[eff.name] ?? 0) as number;
+        ctx.vars[eff.name] = cur + (eff.by ?? 1);
+        break;
+      }
 
       case "advanceTurn":
         ctx.currentPlayerIdx = 1 - ctx.currentPlayerIdx;
@@ -779,12 +817,59 @@ export class IRGameRuntime implements GameRuntime {
         break;
       }
 
-      case "addScore":
-      case "setScore":
-      case "setVar":
-      case "incrementVar":
-        // No cell changes, no-op in trace
+      case "addScore": {
+        const playerIdx = this.resolveOwner(eff.player, ctx);
+        const amount = this.evalExpr(eff.amount, ctx) as number;
+        const before = ctx.scores[playerIdx] ?? 0;
+        ctx.scores[playerIdx] = before + amount;
+        trace.push({
+          effect: "addScore",
+          explanation: `Add ${amount} to ${this.game.players[playerIdx]}'s score.`,
+          cellChanges: [],
+          scoreChanges: [{ player: this.game.players[playerIdx], before, after: ctx.scores[playerIdx] }],
+        });
         break;
+      }
+
+      case "setScore": {
+        const playerIdx = this.resolveOwner(eff.player, ctx);
+        const before = ctx.scores[playerIdx] ?? 0;
+        const after = this.evalExpr(eff.amount, ctx) as number;
+        ctx.scores[playerIdx] = after;
+        trace.push({
+          effect: "setScore",
+          explanation: `Set ${this.game.players[playerIdx]}'s score to ${after}.`,
+          cellChanges: [],
+          scoreChanges: [{ player: this.game.players[playerIdx], before, after }],
+        });
+        break;
+      }
+
+      case "setVar": {
+        const before = ctx.vars[eff.name] ?? null;
+        const after = eff.value !== null ? (this.evalExpr(eff.value, ctx) as number | boolean | string | null) : null;
+        ctx.vars[eff.name] = after;
+        trace.push({
+          effect: "setVar",
+          explanation: `Set ${eff.name} = ${JSON.stringify(after)}.`,
+          cellChanges: [],
+          varChanges: [{ name: eff.name, before, after }],
+        });
+        break;
+      }
+
+      case "incrementVar": {
+        const cur = (ctx.vars[eff.name] ?? 0) as number;
+        const after = cur + (eff.by ?? 1);
+        ctx.vars[eff.name] = after;
+        trace.push({
+          effect: "incrementVar",
+          explanation: `Increment ${eff.name} by ${eff.by ?? 1} (${cur} → ${after}).`,
+          cellChanges: [],
+          varChanges: [{ name: eff.name, before: cur, after }],
+        });
+        break;
+      }
     }
   }
 
@@ -806,7 +891,11 @@ export class IRGameRuntime implements GameRuntime {
     }
 
     if (r.kind === "maxScore" || r.kind === "minScore") {
-      return { winner: null, reason: "Score-based result not supported in this runtime." };
+      const scores = state.scores ?? new Array<number>(this.game.players.length).fill(0);
+      const best = r.kind === "maxScore" ? Math.max(...scores) : Math.min(...scores);
+      const winners = this.game.players.filter((_, i) => scores[i] === best);
+      if (winners.length > 1) return { winner: null, reason: `Draw — equal scores (${best}).` };
+      return { winner: winners[0], reason: `${capitalize(winners[0])} wins with score ${best}.` };
     }
 
     if (r.kind === "lastMoverLoses") {
@@ -953,11 +1042,23 @@ export class IRGameRuntime implements GameRuntime {
   // ─── Context factories ────────────────────────────────────────────────────
 
   private stateCtx(state: GridState): EvalCtx {
-    return this.baseCtx(new Int8Array(state.cells), state.currentPlayer, state.turnNumber);
+    return this.baseCtx(
+      new Int8Array(state.cells),
+      state.currentPlayer,
+      state.turnNumber,
+      (state.scores ?? new Array<number>(this.game.players.length).fill(0)).slice(),
+      { ...(state.vars ?? {}) },
+    );
   }
 
-  private baseCtx(cells: Int8Array, playerIdx: number, turnNumber: number): EvalCtx {
-    return { cells, currentPlayerIdx: playerIdx, turnNumber, bindings: {} };
+  private baseCtx(
+    cells: Int8Array,
+    playerIdx: number,
+    turnNumber: number,
+    scores: number[],
+    vars: Record<string, number | boolean | string | null>,
+  ): EvalCtx {
+    return { cells, currentPlayerIdx: playerIdx, turnNumber, bindings: {}, scores, vars };
   }
 
   // ─── Utility ──────────────────────────────────────────────────────────────

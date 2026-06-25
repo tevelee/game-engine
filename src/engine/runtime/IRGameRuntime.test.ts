@@ -5,8 +5,8 @@ import type { GridState } from "../../rules/core/types";
 import { coordToIndex } from "../../rules/core/coordinates";
 import type { IRGame } from "../ir/types";
 import {
-  $, lit, currentPlayer, allCells, filter, exists, piecesAtCell,
-  placePiece, advanceTurn, seq,
+  $, lit, currentPlayer, opponent, allCells, filter, exists, piecesAtCell,
+  placePiece, advanceTurn, seq, addScore, setVar, incrementVar, countCompare,
   boardFull, distanceMatches, isEmpty, and,
 } from "../ir/builders";
 
@@ -670,5 +670,127 @@ describe("hasLegalAction recursion guard", () => {
     const legal2 = rt.legalActions(state2);
     const passes2 = legal2.filter((a) => a.id === "pass");
     expect(passes2.length).toBeGreaterThan(0);
+  });
+});
+
+// ─── §12: Runtime state — scores and vars ────────────────────────────────────
+
+function scoreGame(): IRGame {
+  return {
+    id: "score.v1",
+    version: 1,
+    name: "Score game",
+    modules: [],
+    board: { id: "main", width: 3, height: 3, coordinates: "algebraic" },
+    players: ["black", "white"],
+    pieceTypes: [{ id: "stone", capturedAs: "convert", stacking: "single" }],
+    vars: [{ name: "moves", type: "int", initial: 0 }],
+    setup: [],
+    definitions: [],
+    actions: [
+      {
+        id: "place",
+        label: "Place",
+        actor: currentPlayer,
+        bindings: [
+          {
+            name: "cell",
+            irType: "cell",
+            from: filter(allCells("main"), "c", isEmpty($("c"))),
+          },
+        ],
+        effects: seq([
+          placePiece("stone", currentPlayer, $("cell")),
+          addScore(currentPlayer, lit(1)),
+          incrementVar("moves"),
+          advanceTurn(),
+        ]),
+      },
+    ],
+    endConditions: [
+      {
+        id: "nineStones",
+        when: countCompare(filter(allCells("main"), "c", exists(piecesAtCell($("c")))), "==", lit(9)),
+      },
+    ],
+    result: { kind: "maxScore", tie: "draw" },
+  };
+}
+
+describe("IRGameRuntime — scores and vars (§12)", () => {
+  it("initialState has zero scores and initialized vars", () => {
+    const rt = new IRGameRuntime(scoreGame());
+    const s0 = rt.initialState();
+    expect(s0.scores).toEqual([0, 0]);
+    expect(s0.vars).toEqual({ moves: 0 });
+  });
+
+  it("addScore increments the placing player's score", () => {
+    const rt = new IRGameRuntime(scoreGame());
+    const s0 = rt.initialState();
+    const action = rt.legalActions(s0)[0];
+    const { state: s1 } = rt.apply(s0, action);
+    expect(s1.scores![0]).toBe(1); // black placed, scored 1
+    expect(s1.scores![1]).toBe(0); // white untouched
+  });
+
+  it("incrementVar tracks turn count", () => {
+    const rt = new IRGameRuntime(scoreGame());
+    let s = rt.initialState();
+    for (let i = 0; i < 3; i++) {
+      const action = rt.legalActions(s)[0];
+      s = rt.apply(s, action).state;
+    }
+    expect(s.vars!.moves).toBe(3);
+  });
+
+  it("effect trace contains scoreChanges for addScore", () => {
+    const rt = new IRGameRuntime(scoreGame());
+    const s0 = rt.initialState();
+    const action = rt.legalActions(s0)[0];
+    const { trace } = rt.apply(s0, action);
+    const scoreEntry = trace.effectTrace.find((e) => e.effect === "addScore");
+    expect(scoreEntry).toBeDefined();
+    expect(scoreEntry!.scoreChanges).toEqual([{ player: "black", before: 0, after: 1 }]);
+  });
+
+  it("effect trace contains varChanges for incrementVar", () => {
+    const rt = new IRGameRuntime(scoreGame());
+    const s0 = rt.initialState();
+    const action = rt.legalActions(s0)[0];
+    const { trace } = rt.apply(s0, action);
+    const varEntry = trace.effectTrace.find((e) => e.effect === "incrementVar");
+    expect(varEntry).toBeDefined();
+    expect(varEntry!.varChanges).toEqual([{ name: "moves", before: 0, after: 1 }]);
+  });
+
+  it("event carries score snapshot", () => {
+    const rt = new IRGameRuntime(scoreGame());
+    const s0 = rt.initialState();
+    const action = rt.legalActions(s0)[0];
+    const { event } = rt.apply(s0, action);
+    expect(event.scores).toEqual([1, 0]);
+  });
+
+  it("finalScores in trace matches state.scores", () => {
+    const rt = new IRGameRuntime(scoreGame());
+    const s0 = rt.initialState();
+    const action = rt.legalActions(s0)[0];
+    const { state, trace } = rt.apply(s0, action);
+    expect(trace.finalScores).toEqual(state.scores);
+  });
+
+  it("maxScore result uses actual scores", () => {
+    const rt = new IRGameRuntime(scoreGame());
+    let s = rt.initialState();
+    // Play 8 moves then check score-based outcome on 9th
+    for (let i = 0; i < 9; i++) {
+      const actions = rt.legalActions(s);
+      s = rt.apply(s, actions[0]).state;
+    }
+    const result = rt.outcome(s);
+    expect(result).not.toBeNull();
+    // black plays on turns 1,3,5,7,9 → 5 points; white: 2,4,6,8 → 4
+    expect(result?.winner).toBe("black");
   });
 });

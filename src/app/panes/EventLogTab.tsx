@@ -72,6 +72,13 @@ export function EventLogTab({ events }: Props) {
               <span className="hash-sep">→</span>
               {ev.nextStateHash}
             </div>
+            {ev.scores && ev.scores.some((s) => s !== 0) && (
+              <div className="event-scores">
+                {ev.scores.map((s, i) => (
+                  <span key={i} className="score-chip">p{i}: {s}</span>
+                ))}
+              </div>
+            )}
           </div>
         );
       })}

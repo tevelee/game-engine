@@ -7,6 +7,10 @@ export interface GridState {
   cells: Int8Array;
   currentPlayer: PlayerId;
   turnNumber: number;
+  /** Per-player scores, indexed 0..players.length-1. Optional for legacy runtimes. */
+  scores?: number[];
+  /** Named game-variable values. Optional for legacy runtimes. */
+  vars?: Record<string, number | boolean | string | null>;
 }
 
 // ─── High-level schema (input) ────────────────────────────────────────────────
@@ -165,6 +169,10 @@ export interface ActionTrace {
   bindingTrace: BindingTraceEntry[];
   effectTrace: EffectTraceEntry[];
   endConditionTrace: EndConditionTraceEntry[];
+  /** Scores after all effects resolved. Present only for IRGameRuntime. */
+  finalScores?: number[];
+  /** Vars after all effects resolved. Present only for IRGameRuntime. */
+  finalVars?: Record<string, number | boolean | string | null>;
 }
 
 export interface BindingTraceEntry {
@@ -174,10 +182,24 @@ export interface BindingTraceEntry {
   selected: string;
 }
 
+export interface ScoreChange {
+  player: string;
+  before: number;
+  after: number;
+}
+
+export interface VarChange {
+  name: string;
+  before: number | boolean | string | null;
+  after: number | boolean | string | null;
+}
+
 export interface EffectTraceEntry {
   effect: string;
   explanation: string;
   cellChanges: CellChange[];
+  scoreChanges?: ScoreChange[];
+  varChanges?: VarChange[];
 }
 
 export interface CellChange {
@@ -203,6 +225,8 @@ export interface GameEvent {
   action: ActionInstance;
   previousStateHash: string;
   nextStateHash: string;
+  /** Score snapshot after this action (indexed by player). Present only for IRGameRuntime. */
+  scores?: number[];
 }
 
 export interface ReplayResult {

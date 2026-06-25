@@ -61,6 +61,24 @@ export function TraceTab({ trace }: Props) {
                 ))}
               </div>
             )}
+            {entry.scoreChanges && entry.scoreChanges.length > 0 && (
+              <div className="cell-changes">
+                {entry.scoreChanges.map((c, j) => (
+                  <div key={j} className="cell-change">
+                    score[{c.player}]: {c.before} → {c.after}
+                  </div>
+                ))}
+              </div>
+            )}
+            {entry.varChanges && entry.varChanges.length > 0 && (
+              <div className="cell-changes">
+                {entry.varChanges.map((c, j) => (
+                  <div key={j} className="cell-change">
+                    {c.name}: {JSON.stringify(c.before)} → {JSON.stringify(c.after)}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </section>
