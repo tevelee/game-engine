@@ -17,6 +17,8 @@ import { IRGameRuntime } from "../engine/runtime/IRGameRuntime";
 import { ataxx } from "../engine/games/ataxx";
 import { tictactoe } from "../engine/games/tictactoe";
 import { reversi } from "../engine/games/reversi";
+import { hex } from "../engine/games/hex";
+import { go } from "../engine/games/go";
 import type { IRGame } from "../engine/ir/types";
 import { generateRulebook } from "../engine/ir/rulebook";
 import { compile } from "../engine/ir/compile";
@@ -30,6 +32,8 @@ const IR_GAMES: { id: string; label: string; game: IRGame }[] = [
   { id: "ataxx",      label: "Ataxx",      game: ataxx      },
   { id: "tictactoe",  label: "Tic-tac-toe", game: tictactoe  },
   { id: "reversi",    label: "Reversi",     game: reversi    },
+  { id: "hex",        label: "Hex",         game: hex        },
+  { id: "go",         label: "Go",          game: go         },
 ];
 
 interface CompileState {

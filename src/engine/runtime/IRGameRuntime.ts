@@ -534,7 +534,7 @@ export class IRGameRuntime implements GameRuntime {
         const zones = this.game.board.zones ?? {};
         const fromCells = zones[pred.fromZone] ?? [];
         const toCells   = new Set(zones[pred.toZone] ?? []);
-        const ownerIdx  = this.evalExpr(pred.owner, ctx) as number;
+        const ownerIdx  = this.resolveOwner(pred.owner, ctx);
         const visited   = new Set<number>();
         const queue: number[] = [];
         for (const coord of fromCells) {
@@ -906,7 +906,7 @@ export class IRGameRuntime implements GameRuntime {
       const ctx = this.stateCtx(state);
       for (const c of r.cases) {
         if (this.evalPredicate(c.condition, ctx)) {
-          const winner = this.evalExpr(c.winner, ctx) as number;
+          const winner = this.resolveOwner(c.winner, ctx);
           return { winner: this.game.players[winner], reason: c.explain ?? "First match." };
         }
       }

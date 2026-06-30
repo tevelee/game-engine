@@ -5,8 +5,8 @@ import type { GridState } from "../../rules/core/types";
 import { coordToIndex } from "../../rules/core/coordinates";
 import type { IRGame } from "../ir/types";
 import {
-  $, lit, currentPlayer, opponent, allCells, filter, exists, piecesAtCell,
-  placePiece, advanceTurn, seq, addScore, setVar, incrementVar, countCompare,
+  $, lit, currentPlayer, allCells, filter, exists, piecesAtCell,
+  placePiece, advanceTurn, seq, addScore, incrementVar, countCompare,
   boardFull, distanceMatches, isEmpty, and,
 } from "../ir/builders";
 
